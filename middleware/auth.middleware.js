@@ -27,6 +27,19 @@ const authorize = async (req, res, next) => {
     res.status(401).json({ success: false, error: 'Unauthorized' });
     next(err);
   }
-}
+};
+
+export const authorizeAdmin = async (req, res, next) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+
+    next();
+  } catch (err) {
+    res.status(403).json({ success: false, error: 'Forbidden' });
+    next(err);
+  }
+};
 
 export default authorize;
