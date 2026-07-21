@@ -16,9 +16,9 @@ export const register = async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'username, email and password are required' });
     }
 
-    const existing = await User.findOne({ $or: [{ email }, { username }] }).session(session);
-    if (existing) {
-      return res.status(409).json({ success: false, error: 'User with given email or username already exists' });
+    const existingUser = await User.findOne({ email }).session(session);
+    if (existingUser) {
+      return res.status(409).json({ success: false, error: 'User with given email already exists' });
     }
 
     const salt = await bcrypt.genSalt(10);
