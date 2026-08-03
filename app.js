@@ -8,6 +8,7 @@ import './models/subscribtion.model.js';
 import './models/user.model.js';
 import errorMiddleware from './middleware/error.middleware.js';
 import cookieParser from 'cookie-parser';
+import arcjetMiddleware from './middleware/arcjet.middleware.js';
 
 const app = express();
 const port = Number(PORT) || 3000;
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: false }));
 app.use(errorMiddleware);
+app.use(arcjetMiddleware);
 
 app.use('/api/v1/subscriptions', subscriptionRouter);
 app.use('/api/v1/user', userRouter);
