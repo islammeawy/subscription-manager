@@ -4,7 +4,7 @@ import subscriptionRouter from './routes/subscription.routes.js';
 import userRouter from './routes/user.routes.js';
 import authRouter from './routes/auth.routes.js';
 import connectDatabase from './database/mongodb.js';
-import './models/subscribtion.model.js';
+import './models/subscription.model.js';
 import './models/user.model.js';
 import errorMiddleware from './middleware/error.middleware.js';
 import cookieParser from 'cookie-parser';
