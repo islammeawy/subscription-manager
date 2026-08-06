@@ -1,35 +1,40 @@
 import {Router} from 'express';
-import authorize from '../middleware/auth.middleware.js';
-import createSubscription from '../controllers/subscriptions.controllers.js';
+import {authorize , authorizeAdmin} from '../middleware/auth.middleware.js';
+import {
+	createSubscription,
+	getSubscriptions,
+	getAllSubscriptions,
+	updateSubscription,
+	cancelSubscription,
+	getUpcomingRenewals,
+	getExpiredSubscriptions,
+	getActiveSubscriptions,
+	getCanceledSubscriptions
+} from '../controllers/subscriptions.controllers.js';
 
 const subscriptionRouter = Router();
 
-subscriptionRouter.get('/', authorize, (req, res) => {
-  res.send('get user subscriptions route');
-});
+subscriptionRouter.get('/', authorizeAdmin, getAllSubscriptions);
 
-subscriptionRouter.get('/:id', authorize, (req, res) => {
-  res.send('get user subscriptions route');
-});
+
+subscriptionRouter.get('/:id', authorize, getSubscriptions);
 
 
 subscriptionRouter.post('/', authorize, createSubscription);
 
-subscriptionRouter.put('/:id', (req, res) => {
-  res.send(`update subscription with id ${req.params.id} route`);
-});
-
-subscriptionRouter.get('/user/:id', (req, res) => {
-  res.send('get user subscriptions route');
-});
+subscriptionRouter.put('/:id', authorize, updateSubscription);
 
 
-subscriptionRouter.delete('/:id/cancel', (req, res) => {
-  res.send(`delete subscription with id ${req.params.id} route`);
-}); 
+subscriptionRouter.patch('/:id/cancel', authorize, cancelSubscription);
 
-subscriptionRouter.get('/upcoming-renewals', (req, res) => {
-  res.send('get user subscriptions route');
-});
+// user-specific filtered views (static routes before param route)
+subscriptionRouter.get('/upcoming-renewals', authorize, getUpcomingRenewals);
+
+subscriptionRouter.get('/expired', authorize, getExpiredSubscriptions);
+
+subscriptionRouter.get('/active', authorize, getActiveSubscriptions);
+
+subscriptionRouter.get('/canceled', authorize, getCanceledSubscriptions);
+
 
 export default subscriptionRouter;
