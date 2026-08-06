@@ -1,4 +1,4 @@
-import {mongoose} from 'mongoose';
+import mongoose from 'mongoose';
 
 const subscriptionSchema = new mongoose.Schema({
 
@@ -56,7 +56,12 @@ const subscriptionSchema = new mongoose.Schema({
     required: true,
     validate: {
       validator: function(value) {
-        return value >= new Date();
+        // compare date-only (midnight) to avoid timezone/time-of-day mismatches
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const v = new Date(value);
+        v.setHours(0, 0, 0, 0);
+        return v > today;
       },
       message: 'Start date must be a future date'
     },
@@ -98,6 +103,6 @@ subscriptionSchema.pre('save', function(next) {
 });
 
 
-const Subscription = mongoose.model('Subscription', subscriptionSchema);
+const Subscription = mongoose.models.Subscription || mongoose.model('Subscription', subscriptionSchema);
 
 export default Subscription;
