@@ -25,7 +25,18 @@ const subscriptionSchema = new mongoose.Schema(
 
     currency: {
       type: String,
-      enum: ["USD", "EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "CNY", "SEK", "NZD"],
+      enum: [
+        "USD",
+        "EUR",
+        "GBP",
+        "JPY",
+        "AUD",
+        "CAD",
+        "CHF",
+        "CNY",
+        "SEK",
+        "NZD",
+      ],
       default: "USD",
     },
 
@@ -70,13 +81,7 @@ const subscriptionSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: [
-        "credit_card",
-        "paypal",
-        "bank_transfer",
-        "crypto",
-        "other",
-      ],
+      enum: ["credit_card", "paypal", "bank_transfer", "crypto", "other"],
       default: "credit_card",
     },
 
@@ -109,7 +114,7 @@ const subscriptionSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 /**

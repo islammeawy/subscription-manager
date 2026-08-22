@@ -1,4 +1,4 @@
-import User from '../models/user.model.js';
+import User from "../models/user.model.js";
 
 const getAllUsers = async (req, res, next) => {
   try {
@@ -12,9 +12,9 @@ const getAllUsers = async (req, res, next) => {
 const getUserById = async (req, res, next) => {
   try {
     const userId = req.params.id;
-    const user = await User.findById(userId , '-password');
+    const user = await User.findById(userId, "-password");
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
     res.json(user);
   } catch (error) {
@@ -22,4 +22,4 @@ const getUserById = async (req, res, next) => {
   }
 };
 
-export {getAllUsers, getUserById};
+export { getAllUsers, getUserById };

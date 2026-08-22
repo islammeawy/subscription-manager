@@ -1,49 +1,45 @@
-import Subscription from '../models/subscription.model.js';
-import mongoose from 'mongoose';
-import { workflowClient } from '../config/upstash.js';
+import Subscription from "../models/subscription.model.js";
+import mongoose from "mongoose";
+import { workflowClient } from "../config/upstash.js";
 
 export const createSubscription = async (req, res) => {
-    try {
-        const subscription = await Subscription.create({
-            ...req.body,
-            user: req.user._id
-        });
+  try {
+    const subscription = await Subscription.create({
+      ...req.body,
+      user: req.user._id,
+    });
 
-        res.status(201).json({
-            success: true,
-            data: subscription
-        });
+    res.status(201).json({
+      success: true,
+      data: subscription,
+    });
 
-        workflowClient.trigger({url , body , header , workflowRunID , retries} :  {
-            url: `${process.env.SERVER_URL}/workflow`,
-            subscriptionId: subscription._id.toString()
-        });
-
-        
-    } catch (err) {
-
-        if (err.name === "ValidationError") {
-            return res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: Object.values(err.errors).map(e => ({
-                    field: e.path,
-                    message: e.message
-                }))
-            });
-        }
-
-        res.status(500).json({
-            success: false,
-            message: err.message
-        });
+    // Trigger a workflow: pass a plain object with `url` and `body`.
+    await workflowClient.trigger({
+      url: `${process.env.SERVER_URL}/workflow`,
+      body: { subscriptionId: subscription._id.toString() },
+    });
+  } catch (err) {
+    if (err.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: Object.values(err.errors).map((e) => ({
+          field: e.path,
+          message: e.message,
+        })),
+      });
     }
-};
 
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
 
 export const getSubscriptions = async (req, res) => {
   try {
-
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -56,12 +52,12 @@ export const getSubscriptions = async (req, res) => {
     if (!req.user._id.equals(id)) {
       return res.status(403).json({
         success: false,
-        message: "You don't have permission to access these subscriptions."
+        message: "You don't have permission to access these subscriptions.",
       });
     }
 
     const subscriptions = await Subscription.find({
-      user: req.user._id
+      user: req.user._id,
     })
       .select("name price renewalDate frequency status")
       .lean();
@@ -70,7 +66,6 @@ export const getSubscriptions = async (req, res) => {
       success: true,
       data: subscriptions,
     });
-
   } catch (error) {
     console.error(error);
 
@@ -81,18 +76,16 @@ export const getSubscriptions = async (req, res) => {
   }
 };
 
-
-
-export const getAllSubscriptions  = async (req, res) => {
+export const getAllSubscriptions = async (req, res) => {
   try {
     const subscriptions = await Subscription.find()
       .select("name price renewalDate frequency status user")
       .populate("user", "username email")
       .lean();
-    
+
     return res.status(200).json({
       success: true,
-      data: subscriptions
+      data: subscriptions,
     });
   } catch (error) {
     console.error(error);
@@ -103,7 +96,6 @@ export const getAllSubscriptions  = async (req, res) => {
     });
   }
 };
-
 
 export const updateSubscription = async (req, res) => {
   try {
@@ -144,14 +136,13 @@ export const updateSubscription = async (req, res) => {
       {
         new: true,
         runValidators: true,
-      }
+      },
     ).lean();
 
     return res.status(200).json({
       success: true,
       data: updatedSubscription,
     });
-
   } catch (error) {
     console.error(error);
 
@@ -204,7 +195,6 @@ export const cancelSubscription = async (req, res) => {
       message: "Subscription canceled successfully.",
       data: subscription,
     });
-
   } catch (error) {
     console.error(error);
 
@@ -215,16 +205,23 @@ export const cancelSubscription = async (req, res) => {
   }
 };
 
-
 export const getUpcomingRenewals = async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
-      return res.status(401).json({ success: false, message: 'Authentication required' });
+      return res
+        .status(401)
+        .json({ success: false, message: "Authentication required" });
     }
 
-    const days = Math.min(365, Math.max(1, parseInt(req.query.days || '30', 10)));
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const days = Math.min(
+      365,
+      Math.max(1, parseInt(req.query.days || "30", 10)),
+    );
+    const page = Math.max(1, parseInt(req.query.page || "1", 10));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(req.query.limit || "20", 10)),
+    );
     const skip = (page - 1) * limit;
 
     const now = new Date();
@@ -235,29 +232,43 @@ export const getUpcomingRenewals = async (req, res) => {
     const filter = {
       user: req.user._id,
       renewalDate: { $gte: now, $lte: end },
-      status: { $ne: 'canceled' }
+      status: { $ne: "canceled" },
     };
 
     const [data, total] = await Promise.all([
-      Subscription.find(filter).select('name price renewalDate frequency status').sort({ renewalDate: 1 }).skip(skip).limit(limit).lean(),
-      Subscription.countDocuments(filter)
+      Subscription.find(filter)
+        .select("name price renewalDate frequency status")
+        .sort({ renewalDate: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Subscription.countDocuments(filter),
     ]);
 
-    return res.status(200).json({ success: true, data, meta: { page, limit, total } });
+    return res
+      .status(200)
+      .json({ success: true, data, meta: { page, limit, total } });
   } catch (err) {
-    console.error('getUpcomingRenewals error:', err);
-    return res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error("getUpcomingRenewals error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 };
 
 export const getExpiredSubscriptions = async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
-      return res.status(401).json({ success: false, message: 'Authentication required' });
+      return res
+        .status(401)
+        .json({ success: false, message: "Authentication required" });
     }
 
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page || "1", 10));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(req.query.limit || "20", 10)),
+    );
     const skip = (page - 1) * limit;
 
     const today = new Date();
@@ -265,65 +276,102 @@ export const getExpiredSubscriptions = async (req, res) => {
 
     const filter = {
       user: req.user._id,
-      $or: [ { status: 'expired' }, { renewalDate: { $lt: today } } ]
+      $or: [{ status: "expired" }, { renewalDate: { $lt: today } }],
     };
 
     const [data, total] = await Promise.all([
-      Subscription.find(filter).select('name price renewalDate frequency status').sort({ renewalDate: -1 }).skip(skip).limit(limit).lean(),
-      Subscription.countDocuments(filter)
+      Subscription.find(filter)
+        .select("name price renewalDate frequency status")
+        .sort({ renewalDate: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Subscription.countDocuments(filter),
     ]);
 
-    return res.status(200).json({ success: true, data, meta: { page, limit, total } });
+    return res
+      .status(200)
+      .json({ success: true, data, meta: { page, limit, total } });
   } catch (err) {
-    console.error('getExpiredSubscriptions error:', err);
-    return res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error("getExpiredSubscriptions error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 };
 
 export const getActiveSubscriptions = async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
-      return res.status(401).json({ success: false, message: 'Authentication required' });
+      return res
+        .status(401)
+        .json({ success: false, message: "Authentication required" });
     }
 
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page || "1", 10));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(req.query.limit || "20", 10)),
+    );
     const skip = (page - 1) * limit;
 
-    const filter = { user: req.user._id, status: 'active' };
+    const filter = { user: req.user._id, status: "active" };
 
     const [data, total] = await Promise.all([
-      Subscription.find(filter).select('name price renewalDate frequency status').sort({ renewalDate: 1 }).skip(skip).limit(limit).lean(),
-      Subscription.countDocuments(filter)
+      Subscription.find(filter)
+        .select("name price renewalDate frequency status")
+        .sort({ renewalDate: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Subscription.countDocuments(filter),
     ]);
 
-    return res.status(200).json({ success: true, data, meta: { page, limit, total } });
+    return res
+      .status(200)
+      .json({ success: true, data, meta: { page, limit, total } });
   } catch (err) {
-    console.error('getActiveSubscriptions error:', err);
-    return res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error("getActiveSubscriptions error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 };
 
 export const getCanceledSubscriptions = async (req, res) => {
   try {
     if (!req.user || !req.user._id) {
-      return res.status(401).json({ success: false, message: 'Authentication required' });
+      return res
+        .status(401)
+        .json({ success: false, message: "Authentication required" });
     }
 
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page || "1", 10));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(req.query.limit || "20", 10)),
+    );
     const skip = (page - 1) * limit;
 
-    const filter = { user: req.user._id, status: 'canceled' };
+    const filter = { user: req.user._id, status: "canceled" };
 
     const [data, total] = await Promise.all([
-      Subscription.find(filter).select('name price renewalDate frequency status').sort({ renewalDate: -1 }).skip(skip).limit(limit).lean(),
-      Subscription.countDocuments(filter)
+      Subscription.find(filter)
+        .select("name price renewalDate frequency status")
+        .sort({ renewalDate: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Subscription.countDocuments(filter),
     ]);
 
-    return res.status(200).json({ success: true, data, meta: { page, limit, total } });
+    return res
+      .status(200)
+      .json({ success: true, data, meta: { page, limit, total } });
   } catch (err) {
-    console.error('getCanceledSubscriptions error:', err);
-    return res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error("getCanceledSubscriptions error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 };

@@ -1,18 +1,22 @@
-import arcjet , { shield, detectBot, tokenBucket } from "@arcjet/node";
+import arcjet, { shield, detectBot, tokenBucket } from "@arcjet/node";
 import { Arcjet_KEY, NODE_ENV } from "./env.js";
-
 
 // Startup check: warn in development, throw in production when key is missing.
 if (!Arcjet_KEY) {
-  const msg = "ARCJET_KEY is not set. Arcjet remote decisions will be unauthenticated.";
+  const msg =
+    "ARCJET_KEY is not set. Arcjet remote decisions will be unauthenticated.";
   if (NODE_ENV === "production") {
-    throw new Error(msg + " Set ARCJET_KEY in your environment to enable protection.");
+    throw new Error(
+      msg + " Set ARCJET_KEY in your environment to enable protection.",
+    );
   }
-  console.warn(msg + " Running in development mode — add ARCJET_KEY to test remote blocking.");
+  console.warn(
+    msg +
+      " Running in development mode — add ARCJET_KEY to test remote blocking.",
+  );
 }
 
 const aj = arcjet({
-
   key: Arcjet_KEY,
   log: console,
   rules: [
@@ -42,6 +46,5 @@ const aj = arcjet({
     }),
   ],
 });
-
 
 export default aj;
