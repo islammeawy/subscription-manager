@@ -2,7 +2,10 @@ import { Router } from "express";
 import { authorize, authorizeAdmin } from "../middleware/auth.middleware.js";
 import {
   createSubscription,
+  getUserSubscriptions,
   getSubscriptions,
+  getSubscriptionById,
+  getUserSubscriptionsById,
   getAllSubscriptions,
   updateSubscription,
   cancelSubscription,
@@ -14,18 +17,27 @@ import {
 
 const subscriptionRouter = Router();
 
-subscriptionRouter.get('/', authorizeAdmin, getAllSubscriptions);
+// Admin route to get all subscriptions across all users
+subscriptionRouter.get("/admin/all", authorize, authorizeAdmin, getAllSubscriptions);
 
 // user-specific filtered views (static routes must come before the param route)
-subscriptionRouter.get('/upcoming-renewals', authorize, getUpcomingRenewals);
-subscriptionRouter.get('/expired', authorize, getExpiredSubscriptions);
-subscriptionRouter.get('/active', authorize, getActiveSubscriptions);
-subscriptionRouter.get('/canceled', authorize, getCanceledSubscriptions);
+subscriptionRouter.get("/upcoming-renewals", authorize, getUpcomingRenewals);
+subscriptionRouter.get("/expired", authorize, getExpiredSubscriptions);
+subscriptionRouter.get("/active", authorize, getActiveSubscriptions);
+subscriptionRouter.get("/canceled", authorize, getCanceledSubscriptions);
 
-subscriptionRouter.get('/:id', authorize, getSubscriptions);
+// Subscriptions by user ID
+subscriptionRouter.get("/user/:id", authorize, getUserSubscriptionsById);
 
-subscriptionRouter.post('/', authorize, createSubscription);
-subscriptionRouter.put('/:id', authorize, updateSubscription);
-subscriptionRouter.patch('/:id/cancel', authorize, cancelSubscription);
+// General subscription list (returns current logged-in user's subscriptions)
+subscriptionRouter.get("/", authorize, getUserSubscriptions);
+
+// Single subscription by subscription ID
+subscriptionRouter.get("/:id", authorize, getSubscriptionById);
+
+// Create, update, cancel
+subscriptionRouter.post("/", authorize, createSubscription);
+subscriptionRouter.put("/:id", authorize, updateSubscription);
+subscriptionRouter.patch("/:id/cancel", authorize, cancelSubscription);
 
 export default subscriptionRouter;

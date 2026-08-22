@@ -4,10 +4,21 @@ import { NODE_ENV } from "../config/env.js";
 const arcjetMiddleware = async (req, res, next) => {
   try {
     // In development allow localhost requests to bypass Arcjet for local testing
-    if (NODE_ENV !== 'production') {
-      const ip = req.ip || req.connection?.remoteAddress;
-      const host = req.hostname || req.headers.host;
-      if (ip === '::1' || ip === '127.0.0.1' || host?.includes('localhost')) {
+    if (NODE_ENV !== "production") {
+      const ip =
+        req.ip ||
+        req.connection?.remoteAddress ||
+        req.socket?.remoteAddress ||
+        "";
+      const host = req.hostname || req.headers.host || "";
+      if (
+        ip === "::1" ||
+        ip === "127.0.0.1" ||
+        ip.includes("127.0.0.1") ||
+        ip.includes("::ffff:127.0.0.1") ||
+        host.includes("localhost") ||
+        host.includes("127.0.0.1")
+      ) {
         return next();
       }
     }

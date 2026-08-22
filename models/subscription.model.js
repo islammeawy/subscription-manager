@@ -44,7 +44,7 @@ const subscriptionSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["active", "inactive", "expired"],
+      enum: ["active", "inactive", "expired", "canceled"],
       default: "active",
     },
     frequency: {
@@ -87,9 +87,9 @@ const subscriptionSchema = new mongoose.Schema(
           today.setHours(0, 0, 0, 0);
           const v = new Date(value);
           v.setHours(0, 0, 0, 0);
-          return v > today;
+          return v >= today;
         },
-        message: "Start date must be a future date",
+        message: "Start date must be today or a future date",
       },
       default: Date.now,
     },
@@ -97,9 +97,9 @@ const subscriptionSchema = new mongoose.Schema(
       type: Date,
       validate: {
         validator: function (value) {
-          return value > this.startDate;
+          return !value || !this.startDate || value >= this.startDate;
         },
-        message: "Renewal date must be a future date",
+        message: "Renewal date must be on or after start date",
       },
       default: Date.now,
     },
@@ -108,8 +108,7 @@ const subscriptionSchema = new mongoose.Schema(
 );
 
 // auto calculate renewal date if missing
-
-subscriptionSchema.pre("save", function (next) {
+subscriptionSchema.pre("save", function () {
   if (!this.renewalDate) {
     const renewalPeriod = this.frequency === "monthly" ? 1 : 12;
     const renewalDate = new Date(this.startDate);
@@ -118,12 +117,9 @@ subscriptionSchema.pre("save", function (next) {
   }
 
   // auto update the status if renewal date has passed
-
   if (this.renewalDate < new Date() && this.status === "active") {
     this.status = "expired";
   }
-
-  next();
 });
 
 const Subscription =

@@ -14,11 +14,17 @@ export const createSubscription = async (req, res) => {
       data: subscription,
     });
 
-    // Trigger a workflow: pass a plain object with `url` and `body`.
-    await workflowClient.trigger({
-      url: `${process.env.SERVER_URL}/workflow`,
-      body: { subscriptionId: subscription._id.toString() },
-    });
+    // Trigger a workflow safely: pass a plain object with `url` and `body`.
+    try {
+      if (workflowClient && process.env.SERVER_URL) {
+        await workflowClient.trigger({
+          url: `${process.env.SERVER_URL}/api/v1/workflow/subscription/reminders`,
+          body: { subscriptionId: subscription._id.toString() },
+        });
+      }
+    } catch (workflowErr) {
+      console.warn("Workflow trigger error:", workflowErr.message);
+    }
   } catch (err) {
     if (err.name === "ValidationError") {
       return res.status(400).json({
@@ -38,7 +44,79 @@ export const createSubscription = async (req, res) => {
   }
 };
 
-export const getSubscriptions = async (req, res) => {
+export const getUserSubscriptions = async (req, res) => {
+  try {
+    const filter =
+      req.user.role === "admin" && req.query.all === "true"
+        ? {}
+        : { user: req.user._id };
+
+    const subscriptions = await Subscription.find(filter)
+      .select(
+        "name price currency renewalDate frequency status duration category paymentMethod startDate user",
+      )
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      data: subscriptions,
+    });
+  } catch (error) {
+    console.error("getUserSubscriptions error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+export const getSubscriptionById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid subscription id",
+      });
+    }
+
+    const subscription = await Subscription.findById(id).lean();
+
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: "Subscription not found",
+      });
+    }
+
+    // Ownership check: must be owner or admin
+    if (
+      subscription.user.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to view this subscription.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: subscription,
+    });
+  } catch (error) {
+    console.error("getSubscriptionById error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+export const getUserSubscriptionsById = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -49,17 +127,17 @@ export const getSubscriptions = async (req, res) => {
       });
     }
 
-    if (!req.user._id.equals(id)) {
+    if (req.user._id.toString() !== id && req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
         message: "You don't have permission to access these subscriptions.",
       });
     }
 
-    const subscriptions = await Subscription.find({
-      user: req.user._id,
-    })
-      .select("name price renewalDate frequency status")
+    const subscriptions = await Subscription.find({ user: id })
+      .select(
+        "name price currency renewalDate frequency status duration category paymentMethod startDate",
+      )
       .lean();
 
     return res.status(200).json({
@@ -67,7 +145,7 @@ export const getSubscriptions = async (req, res) => {
       data: subscriptions,
     });
   } catch (error) {
-    console.error(error);
+    console.error("getUserSubscriptionsById error:", error);
 
     return res.status(500).json({
       success: false,
@@ -76,10 +154,12 @@ export const getSubscriptions = async (req, res) => {
   }
 };
 
+export const getSubscriptions = getUserSubscriptions;
+
 export const getAllSubscriptions = async (req, res) => {
   try {
     const subscriptions = await Subscription.find()
-      .select("name price renewalDate frequency status user")
+      .select("name price currency renewalDate frequency status user")
       .populate("user", "username email")
       .lean();
 
