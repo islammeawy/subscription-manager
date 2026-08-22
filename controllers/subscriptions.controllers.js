@@ -1,5 +1,6 @@
 import Subscription from '../models/subscription.model.js';
 import mongoose from 'mongoose';
+import { workflowClient } from '../config/upstash.js';
 
 export const createSubscription = async (req, res) => {
     try {
@@ -13,6 +14,12 @@ export const createSubscription = async (req, res) => {
             data: subscription
         });
 
+        workflowClient.trigger({url , body , header , workflowRunID , retries} :  {
+            url: `${process.env.SERVER_URL}/workflow`,
+            subscriptionId: subscription._id.toString()
+        });
+
+        
     } catch (err) {
 
         if (err.name === "ValidationError") {

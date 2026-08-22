@@ -14,3 +14,6 @@ export const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1d';
 // Prefer the common uppercase env var `ARCJET_KEY`, but fall back to legacy `Arcjet_KEY`.
 export const Arcjet_KEY = process.env.ARCJET_KEY || process.env.Arcjet_KEY;
 export const Arcjet_ENV = process.env.Arcjet_ENV || 'development';  
+
+export const QSTASH_URL = process.env.QSTASH_URL;
+export const QSTASH_TOKEN = process.env.QSTASH_TOKEN;
