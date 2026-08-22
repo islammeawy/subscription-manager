@@ -14,23 +14,18 @@ import {
 
 const subscriptionRouter = Router();
 
-subscriptionRouter.get("/", authorizeAdmin, getAllSubscriptions);
+subscriptionRouter.get('/', authorizeAdmin, getAllSubscriptions);
 
-subscriptionRouter.get("/:id", authorize, getSubscriptions);
+// user-specific filtered views (static routes must come before the param route)
+subscriptionRouter.get('/upcoming-renewals', authorize, getUpcomingRenewals);
+subscriptionRouter.get('/expired', authorize, getExpiredSubscriptions);
+subscriptionRouter.get('/active', authorize, getActiveSubscriptions);
+subscriptionRouter.get('/canceled', authorize, getCanceledSubscriptions);
 
-subscriptionRouter.post("/", authorize, createSubscription);
+subscriptionRouter.get('/:id', authorize, getSubscriptions);
 
-subscriptionRouter.put("/:id", authorize, updateSubscription);
-
-subscriptionRouter.patch("/:id/cancel", authorize, cancelSubscription);
-
-// user-specific filtered views (static routes before param route)
-subscriptionRouter.get("/upcoming-renewals", authorize, getUpcomingRenewals);
-
-subscriptionRouter.get("/expired", authorize, getExpiredSubscriptions);
-
-subscriptionRouter.get("/active", authorize, getActiveSubscriptions);
-
-subscriptionRouter.get("/canceled", authorize, getCanceledSubscriptions);
+subscriptionRouter.post('/', authorize, createSubscription);
+subscriptionRouter.put('/:id', authorize, updateSubscription);
+subscriptionRouter.patch('/:id/cancel', authorize, cancelSubscription);
 
 export default subscriptionRouter;

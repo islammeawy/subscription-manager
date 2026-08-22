@@ -18,7 +18,7 @@ const subscriptionSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
-      maxlength: 100,
+      max: 100,
     },
     currency: {
       type: String,
@@ -55,7 +55,7 @@ const subscriptionSchema = new mongoose.Schema(
     category: {
       type: String,
       enum: [
-        "sport ",
+        "sport",
         "news",
         "entertainment",
         "education",
@@ -70,7 +70,7 @@ const subscriptionSchema = new mongoose.Schema(
         "gaming",
         "other",
       ],
-      default: "basic",
+      default: "other",
     },
     paymentMethod: {
       type: String,

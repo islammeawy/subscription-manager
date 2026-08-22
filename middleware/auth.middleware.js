@@ -5,19 +5,29 @@ import User from "../models/user.model.js";
 export const authorize = async (req, res, next) => {
   try {
     let token;
+    // Accept Authorization header (case-insensitive) or cookie fallback
+    if (req.headers.authorization) {
+      const auth = req.headers.authorization;
+      if (auth.toLowerCase().startsWith('bearer ')) {
+        token = auth.split(' ')[1];
+      }
+    }
 
-    if (
-      req.headers.authorization &&
-      req.headers.authorization.startsWith("Bearer")
-    ) {
-      token = req.headers.authorization.split(" ")[1];
+    if (!token && req.cookies && req.cookies.token) {
+      token = req.cookies.token;
     }
 
     if (!token) {
-      return res.status(401).json({ success: false, error: "Unauthorized" });
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (verifyErr) {
+      console.error('JWT verify error:', verifyErr.message);
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
     const user = await User.findById(decoded.id).select("-password");
     if (!user) {
       return res.status(401).json({ success: false, error: "Unauthorized" });

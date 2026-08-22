@@ -1,7 +1,16 @@
 import aj from "../config/arcjet.js";
+import { NODE_ENV } from "../config/env.js";
 
 const arcjetMiddleware = async (req, res, next) => {
   try {
+    // In development allow localhost requests to bypass Arcjet for local testing
+    if (NODE_ENV !== 'production') {
+      const ip = req.ip || req.connection?.remoteAddress;
+      const host = req.hostname || req.headers.host;
+      if (ip === '::1' || ip === '127.0.0.1' || host?.includes('localhost')) {
+        return next();
+      }
+    }
     const decision = await aj.protect(req, { requested: 1 });
 
     if (
