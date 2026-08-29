@@ -6,40 +6,65 @@ import mongoose from "mongoose";
 
 export const register = async (req, res, next) => {
   const session = await mongoose.startSession();
-  await session.startTransaction();
+  session.startTransaction();
 
   try {
-    // create a new user
     const { username, email, password } = req.body;
+
     if (!username || !email || !password) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({
         success: false,
         error: "username, email and password are required",
       });
     }
 
-    const existingUser = await User.findOne({ email }).session(session);
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const normalizedUsername = String(username).trim();
+
+    const existingUser = await User.findOne({
+      $or: [{ email: normalizedEmail }, { username: normalizedUsername }],
+    }).session(session);
+
     if (existingUser) {
+      await session.abortTransaction();
+      session.endSession();
+      const duplicateField =
+        existingUser.email.toLowerCase() === normalizedEmail
+          ? "email"
+          : "username";
       return res.status(409).json({
         success: false,
-        error: "User with given email already exists",
+        error: `User with given ${duplicateField} already exists`,
       });
     }
 
-    const user = await User.create([{ username, email, password }], {
-      session,
-    });
+    const [user] = await User.create(
+      [
+        {
+          username: normalizedUsername,
+          email: normalizedEmail,
+          password,
+        },
+      ],
+      { session },
+    );
 
-    const token = jwt.sign({ id: user[0]._id }, JWT_SECRET, {
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, {
       expiresIn: JWT_EXPIRES_IN,
     });
 
     await session.commitTransaction();
     session.endSession();
 
-    res.status(201).json({ success: true, data: { user: user[0], token } });
+    return res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      data: { user, token },
+    });
   } catch (err) {
-    session.abortTransaction();
+    await session.abortTransaction();
     session.endSession();
     next(err);
   }
@@ -50,39 +75,46 @@ export const login = async (req, res, next) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({ success: false, error: "email and password are required" });
+      return res.status(400).json({
+        success: false,
+        error: "email and password are required",
+      });
     }
-    const user =
-      (await User.findOne({ email }).select("+password")) ||
-      (await User.findOne({ email }));
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    // Allow login by email or username
+    const user = await User.findOne({
+      $or: [{ email: normalizedEmail }, { username: String(email).trim() }],
+    }).select("+password");
 
     if (!user) {
-      return res
-        .status(401)
-        .json({ success: false, error: "Invalid credentials" });
+      return res.status(401).json({
+        success: false,
+        error: "Invalid credentials",
+      });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res
-        .status(401)
-        .json({ success: false, error: "Invalid credentials" });
+      return res.status(401).json({
+        success: false,
+        error: "Invalid credentials",
+      });
     }
 
     const token = jwt.sign({ id: user._id }, JWT_SECRET, {
       expiresIn: JWT_EXPIRES_IN,
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Login successful",
       data: { user, token },
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: "Server Error" });
-    next(err);
+    if (next) return next(err);
+    return res.status(500).json({ success: false, error: "Server Error" });
   }
 };
 

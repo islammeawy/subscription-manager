@@ -3,7 +3,6 @@ import { authorize, authorizeAdmin } from "../middleware/auth.middleware.js";
 import {
   createSubscription,
   getUserSubscriptions,
-  getSubscriptions,
   getSubscriptionById,
   getUserSubscriptionsById,
   getAllSubscriptions,

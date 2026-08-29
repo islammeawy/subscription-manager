@@ -74,6 +74,7 @@ export const authorizeAdmin = async (req, res, next) => {
 
     next();
   } catch (err) {
+    console.error("Auth middleware error:", err);
     return res.status(403).json({ success: false, error: "Forbidden" });
   }
 };

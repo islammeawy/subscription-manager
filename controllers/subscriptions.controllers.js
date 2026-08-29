@@ -1,6 +1,7 @@
 import Subscription from "../models/subscription.model.js";
 import mongoose from "mongoose";
 import { workflowClient } from "../config/upstash.js";
+import { SERVER_URL } from "../config/env.js";
 
 export const createSubscription = async (req, res) => {
   try {
@@ -9,22 +10,33 @@ export const createSubscription = async (req, res) => {
       user: req.user._id,
     });
 
-    res.status(201).json({
-      success: true,
-      data: subscription,
-    });
-
-    // Trigger a workflow safely: pass a plain object with `url` and `body`.
+    let workflowRunId;
+    // Trigger workflow and obtain workflowRunId
     try {
-      if (workflowClient && process.env.SERVER_URL) {
-        await workflowClient.trigger({
-          url: `${process.env.SERVER_URL}/api/v1/workflow/subscription/reminders`,
+      if (workflowClient && SERVER_URL) {
+        const triggerResult = await workflowClient.trigger({
+          url: `${SERVER_URL}/api/v1/workflow/subscription/reminders`,
           body: { subscriptionId: subscription._id.toString() },
+          headers: {
+            "content-type": "application/json",
+          },
+          retries: 0,
         });
+        workflowRunId = triggerResult?.workflowRunId;
       }
     } catch (workflowErr) {
       console.warn("Workflow trigger error:", workflowErr.message);
     }
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        subscription,
+        workflowRunId,
+      },
+      workflowRunId,
+      workflowId: workflowRunId,
+    });
   } catch (err) {
     if (err.name === "ValidationError") {
       return res.status(400).json({
@@ -37,7 +49,7 @@ export const createSubscription = async (req, res) => {
       });
     }
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: err.message,
     });

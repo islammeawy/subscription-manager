@@ -101,7 +101,6 @@ const subscriptionSchema = new mongoose.Schema(
         },
         message: "Renewal date must be on or after start date",
       },
-      default: Date.now,
     },
   },
   { timestamps: true },
@@ -111,7 +110,7 @@ const subscriptionSchema = new mongoose.Schema(
 subscriptionSchema.pre("save", function () {
   if (!this.renewalDate) {
     const renewalPeriod = this.frequency === "monthly" ? 1 : 12;
-    const renewalDate = new Date(this.startDate);
+    const renewalDate = new Date(this.startDate || Date.now());
     renewalDate.setMonth(renewalDate.getMonth() + renewalPeriod);
     this.renewalDate = renewalDate;
   }
