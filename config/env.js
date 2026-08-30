@@ -18,3 +18,5 @@ export const Arcjet_ENV = process.env.Arcjet_ENV || "development";
 export const QSTASH_URL = process.env.QSTASH_URL;
 export const QSTASH_TOKEN = process.env.QSTASH_TOKEN;
 export const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
+export const EMAIL_USER = process.env.EMAIL_USER || "islamsinga@gmail.com";
+export const EMAIL_PASSWORD = process.env.EMAIL_PASSWORD || "change_this_password";

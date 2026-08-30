@@ -1,6 +1,7 @@
 import { createRequire } from "module";
 import Subscription from "../models/subscription.model.js";
 import dayjs from "dayjs";
+import { sendEmailReminder } from "../utils/send-email.js";
 
 const require = createRequire(import.meta.url);
 
@@ -57,7 +58,7 @@ const triggerReminder = async (context, label, subscription) => {
     console.log(
       `Triggering ${label} for subscription ${subscription._id || context.requestPayload.subscriptionId}`,
     );
-    // Send email / SMS / notification here
+    await sendEmailReminder(subscription.user.email, label, subscription);
   });
 };
 
