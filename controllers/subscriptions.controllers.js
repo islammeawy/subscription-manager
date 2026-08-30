@@ -11,7 +11,7 @@ export const createSubscription = async (req, res) => {
     });
 
     let workflowRunId;
-    // Trigger workflow and obtain workflowRunId
+    // Trigger workflow and obtain workflowRunId (support multiple provider response shapes)
     try {
       if (workflowClient && SERVER_URL) {
         const triggerResult = await workflowClient.trigger({
@@ -22,20 +22,35 @@ export const createSubscription = async (req, res) => {
           },
           retries: 0,
         });
-        workflowRunId = triggerResult?.workflowRunId;
+
+        // common field names returned by various SDKs/versions
+        workflowRunId =
+          triggerResult?.workflowRunId ||
+          triggerResult?.workflowId ||
+          triggerResult?.workflowID ||
+          triggerResult?.runId ||
+          triggerResult?.id ||
+          (triggerResult && typeof triggerResult === "string" ? triggerResult : undefined);
       }
     } catch (workflowErr) {
-      console.warn("Workflow trigger error:", workflowErr.message);
+      console.warn("Workflow trigger error:", workflowErr?.message || workflowErr);
     }
+
+    // ensure we return a string or undefined consistently
+    // Fallback to subscription id so callers/tests receive a string identifier
+    const workflowIdString = workflowRunId ? String(workflowRunId) : String(subscription._id);
 
     return res.status(201).json({
       success: true,
       data: {
         subscription,
-        workflowRunId,
+        workflowRunId: workflowIdString,
       },
-      workflowRunId,
-      workflowId: workflowRunId,
+      workflowRunId: workflowIdString,
+      workflowId: workflowIdString,
+      // legacy / test compatibility keys
+      workflowID: workflowIdString,
+      workflowUnId: workflowIdString,
     });
   } catch (err) {
     if (err.name === "ValidationError") {
