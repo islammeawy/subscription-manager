@@ -4,6 +4,7 @@ import subscriptionRouter from "./routes/subscription.routes.js";
 import userRouter from "./routes/user.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import workflowRouter from "./routes/workflow.routes.js";
+import swaggerRouter from "./routes/swagger.routes.js";
 import connectDatabase from "./database/mongodb.js";
 import "./models/subscription.model.js";
 import "./models/user.model.js";
@@ -29,6 +30,8 @@ app.use("/api/v1/user", userRouter);
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/workflow", workflowRouter);
+// Swagger UI (API documentation)
+app.use("/", swaggerRouter);
 
 app.get("/", (req, res) => {
   res.send("welcome to subscription tracker ");
