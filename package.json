@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js"
+    "dev": "nodemon app.js",
+    "test": "node tests/verify_security.js",
+    "create-admin": "node scripts/create-admin.js"
   },
   "dependencies": {
     "@arcjet/inspect": "^1.5.0",

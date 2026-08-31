@@ -1,7 +1,7 @@
 import Subscription from "../models/subscription.model.js";
 import mongoose from "mongoose";
 import { workflowClient } from "../config/upstash.js";
-import { SERVER_URL } from "../config/env.js";
+import { SERVER_URL, WORKFLOW_SECRET } from "../config/env.js";
 
 export const createSubscription = async (req, res) => {
   try {
@@ -14,12 +14,15 @@ export const createSubscription = async (req, res) => {
     // Trigger workflow and obtain workflowRunId (support multiple provider response shapes)
     try {
       if (workflowClient && SERVER_URL) {
+        const triggerHeaders = {
+          "content-type": "application/json",
+          ...(WORKFLOW_SECRET ? { "x-workflow-secret": WORKFLOW_SECRET } : {}),
+        };
+
         const triggerResult = await workflowClient.trigger({
           url: `${SERVER_URL}/api/v1/workflow/subscription/reminders`,
           body: { subscriptionId: subscription._id.toString() },
-          headers: {
-            "content-type": "application/json",
-          },
+          headers: triggerHeaders,
           retries: 0,
         });
 
@@ -226,8 +229,14 @@ export const updateSubscription = async (req, res) => {
       });
     }
 
-    // Ownership check
-    if (!subscription.user.equals(req.user._id)) {
+    // Ownership check: owner or admin
+    const isOwner = subscription.user.equals(req.user._id);
+    const isAdmin = req.user.role === "admin";
+
+    if (!isOwner && !isAdmin) {
+      console.warn(
+        `[AUTH AUDIT] Forbidden subscription update attempt: User ${req.user._id} attempted to modify subscription ${id} owned by ${subscription.user}. IP: ${req.ip}`,
+      );
       return res.status(403).json({
         success: false,
         message: "You do not have permission to update this subscription.",
@@ -280,7 +289,13 @@ export const cancelSubscription = async (req, res) => {
       });
     }
 
-    if (!subscription.user.equals(req.user._id)) {
+    const isOwner = subscription.user.equals(req.user._id);
+    const isAdmin = req.user.role === "admin";
+
+    if (!isOwner && !isAdmin) {
+      console.warn(
+        `[AUTH AUDIT] Forbidden subscription cancel attempt: User ${req.user._id} attempted to cancel subscription ${id} owned by ${subscription.user}. IP: ${req.ip}`,
+      );
       return res.status(403).json({
         success: false,
         message: "You do not have permission to cancel this subscription.",

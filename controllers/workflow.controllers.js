@@ -2,6 +2,7 @@ import { createRequire } from "module";
 import Subscription from "../models/subscription.model.js";
 import dayjs from "dayjs";
 import { sendEmailReminder } from "../utils/send-email.js";
+import { workflowClient } from "../config/upstash.js";
 
 const require = createRequire(import.meta.url);
 
@@ -9,9 +10,10 @@ const reminders = [7, 5, 2, 1]; // Days before expiration to send reminders
 
 const { serve } = require("@upstash/workflow/express");
 
-export const sendReminderWorkflow = serve(async (context) => {
-  const { subscriptionId } = context.requestPayload;
-  const subscription = await fetchSubscriptionById(context, subscriptionId);
+export const sendReminderWorkflow = serve(
+  async (context) => {
+    const { subscriptionId } = context.requestPayload;
+    const subscription = await fetchSubscriptionById(context, subscriptionId);
 
   if (!subscription || subscription.status !== "active") {
     return;
@@ -38,6 +40,8 @@ export const sendReminderWorkflow = serve(async (context) => {
       await triggerReminder(context, `${daysBefore} days before reminder`, subscription);
     }
   }
+}, {
+  qstashClient: workflowClient,
 });
 
 const fetchSubscriptionById = async (context, subscriptionId) => {
