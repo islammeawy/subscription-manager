@@ -2,6 +2,22 @@ import Subscription from "../models/subscription.model.js";
 import mongoose from "mongoose";
 import { workflowClient } from "../config/upstash.js";
 import { SERVER_URL, WORKFLOW_SECRET } from "../config/env.js";
+import { cache } from "../config/redis.js";
+
+const CACHE_TTL = 300;
+
+const getUserSubscriptionsCacheKey = (userId) => `subscriptions:user:${userId}`;
+const getSubscriptionCacheKey = (subscriptionId) => `subscription:${subscriptionId}`;
+
+const invalidateSubscriptionCaches = async (userId, subscriptionId) => {
+  const keys = [
+    getUserSubscriptionsCacheKey(userId),
+    getSubscriptionCacheKey(subscriptionId),
+    "subscriptions:all",
+  ];
+
+  await cache.del(...keys);
+};
 
 export const createSubscription = async (req, res) => {
   try {
@@ -43,6 +59,8 @@ export const createSubscription = async (req, res) => {
     // Fallback to subscription id so callers/tests receive a string identifier
     const workflowIdString = workflowRunId ? String(workflowRunId) : String(subscription._id);
 
+    await invalidateSubscriptionCaches(req.user._id.toString(), subscription._id.toString());
+
     return res.status(201).json({
       success: true,
       data: {
@@ -76,16 +94,25 @@ export const createSubscription = async (req, res) => {
 
 export const getUserSubscriptions = async (req, res) => {
   try {
-    const filter =
-      req.user.role === "admin" && req.query.all === "true"
-        ? {}
-        : { user: req.user._id };
+    const isAdminAll = req.user.role === "admin" && req.query.all === "true";
+    const filter = isAdminAll ? {} : { user: req.user._id };
+    const cacheKey = isAdminAll ? "subscriptions:all" : getUserSubscriptionsCacheKey(req.user._id.toString());
+
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      return res.status(200).json({
+        success: true,
+        data: cached,
+      });
+    }
 
     const subscriptions = await Subscription.find(filter)
       .select(
         "name price currency renewalDate frequency status duration category paymentMethod startDate user",
       )
       .lean();
+
+    await cache.set(cacheKey, subscriptions, CACHE_TTL);
 
     return res.status(200).json({
       success: true,
@@ -112,6 +139,26 @@ export const getSubscriptionById = async (req, res) => {
       });
     }
 
+    const cacheKey = getSubscriptionCacheKey(id);
+    const cached = await cache.get(cacheKey);
+
+    if (cached) {
+      if (
+        cached.user?.toString() !== req.user._id.toString() &&
+        req.user.role !== "admin"
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "You do not have permission to view this subscription.",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: cached,
+      });
+    }
+
     const subscription = await Subscription.findById(id).lean();
 
     if (!subscription) {
@@ -131,6 +178,8 @@ export const getSubscriptionById = async (req, res) => {
         message: "You do not have permission to view this subscription.",
       });
     }
+
+    await cache.set(cacheKey, subscription, CACHE_TTL);
 
     return res.status(200).json({
       success: true,
@@ -255,6 +304,8 @@ export const updateSubscription = async (req, res) => {
       },
     ).lean();
 
+    await invalidateSubscriptionCaches(subscription.user.toString(), id);
+
     return res.status(200).json({
       success: true,
       data: updatedSubscription,
@@ -311,6 +362,8 @@ export const cancelSubscription = async (req, res) => {
 
     subscription.status = "canceled";
     await subscription.save();
+
+    await invalidateSubscriptionCaches(subscription.user.toString(), subscription._id.toString());
 
     return res.status(200).json({
       success: true,

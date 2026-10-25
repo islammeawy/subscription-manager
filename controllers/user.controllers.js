@@ -1,12 +1,29 @@
 import mongoose from "mongoose";
 import User from "../models/user.model.js";
+import { cache } from "../config/redis.js";
+
+const CACHE_TTL = 300;
+const getUserCacheKey = (userId) => `user:${userId}`;
+const getUsersListCacheKey = () => "users:all";
 
 /**
  * Fetch all users (Admin only)
  */
 const getAllUsers = async (req, res, next) => {
   try {
+    const cacheKey = getUsersListCacheKey();
+    const cachedUsers = await cache.get(cacheKey);
+
+    if (cachedUsers) {
+      return res.status(200).json({
+        success: true,
+        data: cachedUsers,
+      });
+    }
+
     const users = await User.find().select("-password").lean();
+    await cache.set(cacheKey, users, CACHE_TTL);
+
     return res.status(200).json({
       success: true,
       data: users,
@@ -30,6 +47,29 @@ const getUserById = async (req, res, next) => {
       });
     }
 
+    const cacheKey = getUserCacheKey(userId);
+    const cachedUser = await cache.get(cacheKey);
+
+    if (cachedUser) {
+      const isOwner = req.user && req.user._id.toString() === userId;
+      const isAdmin = req.user && req.user.role === "admin";
+
+      if (!isOwner && !isAdmin) {
+        console.warn(
+          `[AUTH AUDIT] Forbidden profile access attempt: User ${req.user?._id} attempted to view profile of user ${userId}. IP: ${req.ip}`,
+        );
+        return res.status(403).json({
+          success: false,
+          message: "You do not have permission to view this user profile.",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: cachedUser,
+      });
+    }
+
     const user = await User.findById(userId).select("-password").lean();
     if (!user) {
       return res.status(404).json({
@@ -50,6 +90,8 @@ const getUserById = async (req, res, next) => {
         message: "You do not have permission to view this user profile.",
       });
     }
+
+    await cache.set(cacheKey, user, CACHE_TTL);
 
     return res.status(200).json({
       success: true,
@@ -107,6 +149,8 @@ const updateUserRole = async (req, res, next) => {
         message: "User not found",
       });
     }
+
+    await cache.del(getUserCacheKey(userId), getUsersListCacheKey());
 
     console.log(
       `[ADMIN AUDIT] User ${req.user._id} updated role of user ${userId} to '${role}'`,
