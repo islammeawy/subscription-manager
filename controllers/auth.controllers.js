@@ -2,18 +2,13 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import User from "../models/user.model.js";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "../config/env.js";
-import mongoose from "mongoose";
+import { isValidEmail } from "../utils/validation.js";
 
 export const register = async (req, res, next) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const { username, email, password } = req.body;
 
     if (!username || !email || !password) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({
         success: false,
         error: "username, email and password are required",
@@ -23,13 +18,18 @@ export const register = async (req, res, next) => {
     const normalizedEmail = String(email).trim().toLowerCase();
     const normalizedUsername = String(username).trim();
 
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({
+        success: false,
+        error: "Please provide a valid email address",
+      });
+    }
+
     const existingUser = await User.findOne({
       $or: [{ email: normalizedEmail }, { username: normalizedUsername }],
-    }).session(session);
+    });
 
     if (existingUser) {
-      await session.abortTransaction();
-      session.endSession();
       const duplicateField =
         existingUser.email.toLowerCase() === normalizedEmail
           ? "email"
@@ -40,23 +40,15 @@ export const register = async (req, res, next) => {
       });
     }
 
-    const [user] = await User.create(
-      [
-        {
-          username: normalizedUsername,
-          email: normalizedEmail,
-          password,
-        },
-      ],
-      { session },
-    );
+    const user = await User.create({
+      username: normalizedUsername,
+      email: normalizedEmail,
+      password,
+    });
 
     const token = jwt.sign({ id: user._id }, JWT_SECRET, {
       expiresIn: JWT_EXPIRES_IN,
     });
-
-    await session.commitTransaction();
-    session.endSession();
 
     return res.status(201).json({
       success: true,
@@ -64,8 +56,6 @@ export const register = async (req, res, next) => {
       data: { user, token },
     });
   } catch (err) {
-    await session.abortTransaction();
-    session.endSession();
     next(err);
   }
 };
